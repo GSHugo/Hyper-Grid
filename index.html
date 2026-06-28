@@ -4,47 +4,154 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hyper Grid</title>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     body { background: #121212; color: #FFFFFF; font-family: 'Segoe UI', sans-serif; padding: 15px; }
     .card { background: #1E1E1E; padding: 20px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-    input { width: 100%; padding: 12px; margin: 8px 0; background: #333; color: white; border: 1px solid #444; border-radius: 6px; box-sizing: border-box; }
-    button { width: 100%; padding: 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    input, select { width: 100%; padding: 12px; margin: 8px 0; background: #333; color: white; border: 1px solid #444; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+    label { font-size: 13px; color: #aaa; display:block; margin-top:10px; }
+    .ubicacion-fija-label { background:#2a2a2a; padding:10px; border-radius:6px; font-weight:bold; color:#F29D38; text-align:center; margin-top:8px; }
+    .ubicacion-selects { display:flex; gap:8px; }
+    .ubicacion-selects select { flex:1; }
+    button { width: 100%; padding: 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size:15px; }
     button:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-orange { background: #F29D38; color: #000; }
     .btn-blue { background: #3B82F6; color: #fff; }
+    .btn-gray { background:#888; color:#fff; }
     .logo { width: 120px; display: block; margin: 0 auto 15px; }
+    #ubicacionFija { background:#F29D38; color:#000; padding:12px; border-radius:8px; font-weight:bold; text-align:center; margin-bottom:15px; font-size:14px; }
+    .scan-row { display:flex; gap:8px; align-items:flex-start; }
+    .scan-row input { flex:1; }
+    .scan-row button { width:auto; padding:12px 16px; margin-top:8px; }
+    #scannerContainer { display:none; margin-top:10px; }
+    #reader { width:100%; border-radius:8px; overflow:hidden; }
   </style>
 </head>
 <body>
-  <img src="https://i.imgur.com/iFullLogo.png" class="logo">
+  <img src="logo.png" class="logo" onerror="this.style.display='none'">
   <h2 style="text-align:center; color:#F29D38;">Hyper Grid</h2>
 
   <div id="sesion" class="card">
-    <input type="text" id="cont" placeholder="No. Contenedor">
-    <input type="text" id="ubi" placeholder="Ubicación (Ej: TEXCO/FERRAFORME/A/11/N1)">
+    <label>No. Contenedor</label>
+    <select id="cont"></select>
+
+    <label>Ubicación</label>
+    <div class="ubicacion-fija-label">TEXCO/FERRAFORME</div>
+    <div class="ubicacion-selects">
+      <select id="letra"></select>
+      <select id="rack"></select>
+      <select id="nivel"></select>
+    </div>
+
     <button class="btn-orange" onclick="iniciar()">Iniciar Sesión</button>
   </div>
 
   <div id="app" class="card" style="display:none;">
-    <input type="text" id="busqueda" placeholder="Escanear EAN o Ref...">
+    <div id="ubicacionFija"></div>
+
+    <label>Código (EAN / Ref)</label>
+    <div class="scan-row">
+      <input type="text" id="busqueda" placeholder="Escanea o escribe el código...">
+      <button class="btn-orange" onclick="abrirScanner()" type="button">📷</button>
+    </div>
+
+    <div id="scannerContainer">
+      <div id="reader"></div>
+      <button class="btn-gray" onclick="cerrarScanner()" type="button">Cerrar cámara</button>
+    </div>
+
+    <label>Cantidad</label>
     <input type="number" id="cant" placeholder="Cantidad">
+
     <button class="btn-blue" onclick="guardar()">Registrar</button>
-    <button onclick="location.reload()" style="background:#888;">Cerrar Sesión</button>
+    <button class="btn-gray" onclick="location.reload()" type="button">Cerrar Sesión</button>
   </div>
 
   <script>
     let sesion = { cont: '', ubi: '' };
+    let html5QrCode = null;
+
+    function poblarSelect(id, valores) {
+      const sel = document.getElementById(id);
+      valores.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v;
+        sel.appendChild(opt);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      poblarSelect('cont', Array.from({length: 100}, (_, i) => i + 1));
+      poblarSelect('letra', Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i)));
+      poblarSelect('rack', Array.from({length: 65}, (_, i) => i + 11)); // 11 a 75
+      poblarSelect('nivel', Array.from({length: 6}, (_, i) => 'N' + (i + 1)));
+
+      document.getElementById('busqueda').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); document.getElementById('cant').focus(); }
+      });
+      document.getElementById('cant').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); guardar(); }
+      });
+    });
 
     function iniciar() {
-      sesion.cont = document.getElementById('cont').value.trim();
-      sesion.ubi = document.getElementById('ubi').value.trim();
-      if (!sesion.cont || !sesion.ubi) {
-        alert('Completa contenedor y ubicación');
-        return;
-      }
+      const cont = document.getElementById('cont').value;
+      const letra = document.getElementById('letra').value;
+      const rack = document.getElementById('rack').value;
+      const nivel = document.getElementById('nivel').value;
+
+      sesion.cont = cont;
+      sesion.ubi = `TEXCO/FERRAFORMA/${letra}/${rack}/${nivel}`;
+
+      document.getElementById('ubicacionFija').textContent =
+        `📦 Contenedor ${sesion.cont}  |  📍 ${sesion.ubi}`;
+
       document.getElementById('sesion').style.display = 'none';
       document.getElementById('app').style.display = 'block';
       document.getElementById('busqueda').focus();
+    }
+
+    function abrirScanner() {
+      document.getElementById('scannerContainer').style.display = 'block';
+      html5QrCode = new Html5Qrcode("reader");
+
+      const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 150 },
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.QR_CODE
+        ]
+      };
+
+      html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+          document.getElementById('busqueda').value = decodedText;
+          cerrarScanner();
+          document.getElementById('cant').focus();
+        },
+        () => { /* se dispara en cada frame sin lectura, se ignora */ }
+      ).catch(err => {
+        alert('No se pudo acceder a la cámara: ' + err);
+        document.getElementById('scannerContainer').style.display = 'none';
+      });
+    }
+
+    function cerrarScanner() {
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+          html5QrCode.clear();
+          html5QrCode = null;
+        }).catch(() => {});
+      }
+      document.getElementById('scannerContainer').style.display = 'none';
     }
 
     async function guardar() {
@@ -84,15 +191,6 @@
         btn.textContent = 'Registrar';
       }
     }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('busqueda').addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); document.getElementById('cant').focus(); }
-      });
-      document.getElementById('cant').addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); guardar(); }
-      });
-    });
   </script>
 </body>
 </html>
