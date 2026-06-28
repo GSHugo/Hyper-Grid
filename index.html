@@ -13,13 +13,6 @@
     document.getElementById('busqueda').focus();
   }
 
-  document.getElementById('busqueda').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('cant').focus(); }
-  });
-  document.getElementById('cant').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); guardar(); }
-  });
-
   async function guardar() {
     const busqueda = document.getElementById('busqueda').value.trim();
     const cantidad = document.getElementById('cant').value;
@@ -27,16 +20,13 @@
       alert('Escanea un código e ingresa la cantidad');
       return;
     }
-
     const btn = document.querySelector('.btn-blue');
     btn.disabled = true;
     btn.textContent = 'Guardando...';
-
     const data = {
       action: 'guardar', contenedor: sesion.cont, ubicacion: sesion.ubi,
       busqueda, cantidad, sku: 'N/A', descripcion: 'N/A'
     };
-
     try {
       const resp = await fetch("https://script.google.com/macros/s/AKfycbxPQYsCjdQPP8yIezDJuO2kg9ykfdudrj49kBnKf558-_KYC-B-6E_5hRQ7WutLw3jA/exec", {
         method: 'POST', body: JSON.stringify(data)
@@ -53,4 +43,14 @@
       btn.textContent = 'Registrar';
     }
   }
+
+  // Esto asegura que los elementos ya existan antes de "escucharlos"
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('busqueda').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('cant').focus(); }
+    });
+    document.getElementById('cant').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); guardar(); }
+    });
+  });
 </script>
