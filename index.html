@@ -10,66 +10,103 @@
     .card { background: #1E1E1E; padding: 20px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
     input, select { width: 100%; padding: 12px; margin: 8px 0; background: #333; color: white; border: 1px solid #444; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
     label { font-size: 13px; color: #aaa; display:block; margin-top:10px; }
-    .ubicacion-fija-label { background:#2a2a2a; padding:10px; border-radius:6px; font-weight:bold; color:#F29D38; text-align:center; margin-top:8px; }
-    .ubicacion-selects { display:flex; gap:8px; }
-    .ubicacion-selects select { flex:1; }
     button { width: 100%; padding: 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size:15px; }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-orange { background: #F29D38; color: #000; }
     .btn-blue { background: #3B82F6; color: #fff; }
-    .btn-gray { background:#888; color:#fff; }
+    .btn-gray { background:#555; color:#fff; }
     .logo { width: 120px; display: block; margin: 0 auto 15px; }
-    #ubicacionFija { background:#F29D38; color:#000; padding:12px; border-radius:8px; font-weight:bold; text-align:center; margin-bottom:15px; font-size:14px; }
+    #barraFija { background:#F29D38; color:#000; padding:12px; border-radius:8px; font-weight:bold; text-align:center; margin-bottom:15px; font-size:14px; }
+    #contenedorFijoLabel { background:#2a2a2a; padding:10px; border-radius:6px; font-weight:bold; color:#F29D38; text-align:center; margin-bottom:10px; }
     .scan-row { display:flex; gap:8px; align-items:flex-start; }
     .scan-row input { flex:1; }
     .scan-row button { width:auto; padding:12px 16px; margin-top:8px; }
-    #scannerContainer { display:none; margin-top:10px; }
+    #scannerContainer { margin-top:10px; }
     #reader { width:100%; border-radius:8px; overflow:hidden; }
+    #resultadoProducto { background:#15351f; border:1px solid #2e7d4f; padding:12px; border-radius:8px; margin-top:10px; }
+    #resultadoProducto .titulo { color:#4ade80; font-weight:bold; font-size:13px; }
+    #modoManual { background:#352a15; border:1px solid #7d5a2e; padding:12px; border-radius:8px; margin-top:10px; }
+    #modoManual .titulo { color:#F29D38; font-weight:bold; font-size:13px; }
+    hr { border-color:#333; margin:15px 0; }
   </style>
 </head>
 <body>
   <img src="logo.png" class="logo" onerror="this.style.display='none'">
   <h2 style="text-align:center; color:#F29D38;">Hyper Grid</h2>
 
-  <div id="sesion" class="card">
-    <label>No. Contenedor</label>
-    <select id="cont"></select>
+  <!-- PANTALLA 1: SESIÓN (Contenedor + Ubicación) -->
+  <div id="pantallaSesion" class="card">
+    <div id="contenedorFijoLabel" style="display:none;"></div>
+
+    <div id="bloqueContenedor">
+      <label>No. Contenedor</label>
+      <select id="cont"><option value="">Selecciona...</option></select>
+    </div>
 
     <label>Ubicación</label>
-    <div class="ubicacion-fija-label">TEXCO/FERRAFORME</div>
-    <div class="ubicacion-selects">
-      <select id="letra"></select>
-      <select id="rack"></select>
-      <select id="nivel"></select>
-    </div>
+    <select id="ubicacion"><option value="">Cargando ubicaciones...</option></select>
 
-    <button class="btn-orange" onclick="iniciar()">Iniciar Sesión</button>
+    <button class="btn-orange" onclick="confirmarSesion()">Iniciar / Confirmar Ubicación</button>
   </div>
 
+  <!-- PANTALLA 2: CAPTURA -->
   <div id="app" class="card" style="display:none;">
-    <div id="ubicacionFija"></div>
+    <div id="barraFija"></div>
 
-    <label>Código (EAN / Ref)</label>
+    <label>Código (EAN / Ref / Descripción)</label>
     <div class="scan-row">
-      <input type="text" id="busqueda" placeholder="Escanea o escribe el código...">
+      <input type="text" id="busqueda" placeholder="Escanea, escribe código o descripción...">
       <button class="btn-orange" onclick="abrirScanner()" type="button">📷</button>
     </div>
+    <button class="btn-blue" onclick="buscarProducto()" type="button">🔍 Buscar</button>
 
-    <div id="scannerContainer">
+    <div id="scannerContainer" style="display:none;">
       <div id="reader"></div>
       <button class="btn-gray" onclick="cerrarScanner()" type="button">Cerrar cámara</button>
     </div>
 
-    <label>Cantidad</label>
-    <input type="number" id="cant" placeholder="Cantidad">
+    <div id="resultadoProducto" style="display:none;">
+      <div class="titulo">✔ Producto encontrado</div>
+      <div id="resTexto"></div>
+    </div>
 
-    <button class="btn-blue" onclick="guardar()">Registrar</button>
-    <button class="btn-gray" onclick="location.reload()" type="button">Cerrar Sesión</button>
+    <div id="modoManual" style="display:none;">
+      <div class="titulo">⚠ No encontrado en catálogo — captura manual</div>
+      <label>Descripción</label>
+      <input type="text" id="descManual" placeholder="Nombre del producto">
+      <label>SKU Odoo (si lo conoces)</label>
+      <input type="text" id="skuManual" placeholder="Déjalo vacío si no lo sabes">
+      <button class="btn-orange" onclick="confirmarManual()" type="button">Usar estos datos</button>
+    </div>
+
+    <label>Cantidad</label>
+    <input type="number" id="cant" placeholder="Cantidad" disabled>
+
+    <button class="btn-blue" onclick="guardar()" id="btnRegistrar" disabled>Registrar</button>
+
+    <hr>
+    <button class="btn-gray" onclick="cerrarUbicacion()" type="button">🔁 Cerrar Ubicación</button>
+    <button class="btn-gray" onclick="finalizarContenedor()" type="button">⏹ Finalizar Contenedor</button>
   </div>
 
   <script>
-    let sesion = { cont: '', ubi: '' };
+    const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxSD7oa0UjsFeYTXHh_90Rvsdlxa8Tbu7kjaDDg5ld83jZZkjA41A8tQqm2SBl5-LFg/exec";
+
+    let sesion = { cont: '', ubi: '', contenedorFijo: false };
+    let productoActual = null;
     let html5QrCode = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      poblarSelect('cont', Array.from({length: 100}, (_, i) => i + 1));
+      cargarUbicaciones();
+
+      document.getElementById('busqueda').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); buscarProducto(); }
+      });
+      document.getElementById('cant').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); guardar(); }
+      });
+    });
 
     function poblarSelect(id, valores) {
       const sel = document.getElementById(id);
@@ -81,63 +118,125 @@
       });
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      poblarSelect('cont', Array.from({length: 100}, (_, i) => i + 1));
-      poblarSelect('letra', Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i)));
-      poblarSelect('rack', Array.from({length: 65}, (_, i) => i + 11)); // 11 a 75
-      poblarSelect('nivel', Array.from({length: 6}, (_, i) => 'N' + (i + 1)));
+    async function llamarServidor(payload) {
+      const resp = await fetch(URL_SCRIPT, { method: 'POST', body: JSON.stringify(payload) });
+      return resp.json();
+    }
 
-      document.getElementById('busqueda').addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); document.getElementById('cant').focus(); }
-      });
-      document.getElementById('cant').addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); guardar(); }
-      });
-    });
+    async function cargarUbicaciones() {
+      const sel = document.getElementById('ubicacion');
+      try {
+        const result = await llamarServidor({ action: 'obtenerUbicaciones' });
+        sel.innerHTML = '<option value="">Selecciona...</option>';
+        if (result.status === 'success') {
+          result.ubicaciones.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u; opt.textContent = u;
+            sel.appendChild(opt);
+          });
+        } else {
+          sel.innerHTML = '<option value="">Error al cargar</option>';
+        }
+      } catch (err) {
+        sel.innerHTML = '<option value="">Sin conexión</option>';
+      }
+    }
 
-    function iniciar() {
-      const cont = document.getElementById('cont').value;
-      const letra = document.getElementById('letra').value;
-      const rack = document.getElementById('rack').value;
-      const nivel = document.getElementById('nivel').value;
+    function confirmarSesion() {
+      const ubi = document.getElementById('ubicacion').value;
+      if (!ubi) { alert('Selecciona una ubicación'); return; }
 
-      sesion.cont = cont;
-      sesion.ubi = `TEXCO/FERRAFORMA/${letra}/${rack}/${nivel}`;
+      if (!sesion.contenedorFijo) {
+        const cont = document.getElementById('cont').value;
+        if (!cont) { alert('Selecciona un contenedor'); return; }
+        sesion.cont = cont;
+      }
+      sesion.ubi = ubi;
 
-      document.getElementById('ubicacionFija').textContent =
+      document.getElementById('barraFija').textContent =
         `📦 Contenedor ${sesion.cont}  |  📍 ${sesion.ubi}`;
 
-      document.getElementById('sesion').style.display = 'none';
+      document.getElementById('pantallaSesion').style.display = 'none';
       document.getElementById('app').style.display = 'block';
+      resetCaptura();
       document.getElementById('busqueda').focus();
+    }
+
+    function resetCaptura() {
+      productoActual = null;
+      document.getElementById('busqueda').value = '';
+      document.getElementById('cant').value = '';
+      document.getElementById('cant').disabled = true;
+      document.getElementById('btnRegistrar').disabled = true;
+      document.getElementById('resultadoProducto').style.display = 'none';
+      document.getElementById('modoManual').style.display = 'none';
+      document.getElementById('descManual').value = '';
+      document.getElementById('skuManual').value = '';
+    }
+
+    async function buscarProducto() {
+      const codigo = document.getElementById('busqueda').value.trim();
+      if (!codigo) { alert('Escribe o escanea un código'); return; }
+
+      document.getElementById('resultadoProducto').style.display = 'none';
+      document.getElementById('modoManual').style.display = 'none';
+      document.getElementById('cant').disabled = true;
+      document.getElementById('btnRegistrar').disabled = true;
+      productoActual = null;
+
+      try {
+        const result = await llamarServidor({
+          action: 'buscarProducto', contenedor: sesion.cont, busqueda: codigo
+        });
+
+        if (result.status === 'success') {
+          productoActual = { sku: result.sku, descripcion: result.descripcion };
+          document.getElementById('resTexto').textContent =
+            `${result.descripcion}  —  SKU: ${result.sku}`;
+          document.getElementById('resultadoProducto').style.display = 'block';
+          document.getElementById('cant').disabled = false;
+          document.getElementById('btnRegistrar').disabled = false;
+          document.getElementById('cant').focus();
+        } else if (result.status === 'no_encontrado') {
+          document.getElementById('modoManual').style.display = 'block';
+        } else {
+          alert('Error: ' + (result.message || 'No se pudo buscar'));
+        }
+      } catch (err) {
+        alert('No se pudo conectar con el servidor');
+      }
+    }
+
+    function confirmarManual() {
+      const desc = document.getElementById('descManual').value.trim();
+      if (!desc) { alert('Escribe al menos la descripción'); return; }
+      const sku = document.getElementById('skuManual').value.trim() || 'MANUAL';
+      productoActual = { sku, descripcion: desc };
+      document.getElementById('cant').disabled = false;
+      document.getElementById('btnRegistrar').disabled = false;
+      document.getElementById('cant').focus();
     }
 
     function abrirScanner() {
       document.getElementById('scannerContainer').style.display = 'block';
       html5QrCode = new Html5Qrcode("reader");
-
       const config = {
         fps: 10,
         qrbox: { width: 250, height: 150 },
         formatsToSupport: [
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.QR_CODE
+          Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.QR_CODE
         ]
       };
-
       html5QrCode.start(
-        { facingMode: "environment" },
-        config,
+        { facingMode: "environment" }, config,
         (decodedText) => {
           document.getElementById('busqueda').value = decodedText;
           cerrarScanner();
-          document.getElementById('cant').focus();
+          buscarProducto();
         },
-        () => { /* se dispara en cada frame sin lectura, se ignora */ }
+        () => {}
       ).catch(err => {
         alert('No se pudo acceder a la cámara: ' + err);
         document.getElementById('scannerContainer').style.display = 'none';
@@ -146,10 +245,7 @@
 
     function cerrarScanner() {
       if (html5QrCode) {
-        html5QrCode.stop().then(() => {
-          html5QrCode.clear();
-          html5QrCode = null;
-        }).catch(() => {});
+        html5QrCode.stop().then(() => { html5QrCode.clear(); html5QrCode = null; }).catch(() => {});
       }
       document.getElementById('scannerContainer').style.display = 'none';
     }
@@ -157,12 +253,11 @@
     async function guardar() {
       const busqueda = document.getElementById('busqueda').value.trim();
       const cantidad = document.getElementById('cant').value;
-      if (!busqueda || !cantidad) {
-        alert('Escanea un código e ingresa la cantidad');
-        return;
-      }
 
-      const btn = document.querySelector('.btn-blue');
+      if (!productoActual) { alert('Primero busca o confirma el producto'); return; }
+      if (!busqueda || !cantidad) { alert('Falta el código o la cantidad'); return; }
+
+      const btn = document.getElementById('btnRegistrar');
       btn.disabled = true;
       btn.textContent = 'Guardando...';
 
@@ -171,25 +266,35 @@
         contenedor: sesion.cont,
         ubicacion: sesion.ubi,
         busqueda, cantidad,
-        sku: 'N/A', descripcion: 'N/A'
+        sku: productoActual.sku,
+        descripcion: productoActual.descripcion
       };
 
       try {
-        const resp = await fetch("https://script.google.com/macros/s/AKfycbxPQYsCjdQPP8yIezDJuO2kg9ykfdudrj49kBnKf558-_KYC-B-6E_5hRQ7WutLw3jA/exec", {
-          method: 'POST',
-          body: JSON.stringify(data)
-        });
-        const result = await resp.json();
+        const result = await llamarServidor(data);
         alert(result.status === 'success' ? 'Registrado con éxito' : 'Error: ' + result.message);
+        if (result.status === 'success') resetCaptura();
       } catch (err) {
         alert('No se pudo conectar con el servidor');
       } finally {
-        document.getElementById('busqueda').value = '';
-        document.getElementById('cant').value = '';
-        document.getElementById('busqueda').focus();
         btn.disabled = false;
         btn.textContent = 'Registrar';
+        document.getElementById('busqueda').focus();
       }
+    }
+
+    function cerrarUbicacion() {
+      sesion.contenedorFijo = true;
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('bloqueContenedor').style.display = 'none';
+      document.getElementById('contenedorFijoLabel').style.display = 'block';
+      document.getElementById('contenedorFijoLabel').textContent = `📦 Contenedor fijo: ${sesion.cont}`;
+      document.getElementById('pantallaSesion').style.display = 'block';
+      document.getElementById('ubicacion').value = '';
+    }
+
+    function finalizarContenedor() {
+      location.reload();
     }
   </script>
 </body>
