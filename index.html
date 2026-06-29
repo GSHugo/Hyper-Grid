@@ -10,6 +10,9 @@
     .card { background: #1E1E1E; padding: 20px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
     input, select { width: 100%; padding: 12px; margin: 8px 0; background: #333; color: white; border: 1px solid #444; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
     label { font-size: 13px; color: #aaa; display:block; margin-top:10px; }
+    .ubicacion-fija-label { background:#2a2a2a; padding:10px; border-radius:6px; font-weight:bold; color:#F29D38; text-align:center; margin-top:8px; }
+    .ubicacion-selects { display:flex; gap:8px; }
+    .ubicacion-selects select { flex:1; }
     button { width: 100%; padding: 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size:15px; }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-orange { background: #F29D38; color: #000; }
@@ -44,7 +47,12 @@
     </div>
 
     <label>Ubicación</label>
-    <select id="ubicacion"><option value="">Cargando ubicaciones...</option></select>
+    <div class="ubicacion-fija-label">TEXCO/FERRAFORME</div>
+    <div class="ubicacion-selects">
+      <select id="letra"><option value="">Letra</option></select>
+      <select id="rack"><option value="">Rack</option></select>
+      <select id="nivel"><option value="">Nivel</option></select>
+    </div>
 
     <button class="btn-orange" onclick="confirmarSesion()">Iniciar / Confirmar Ubicación</button>
   </div>
@@ -98,7 +106,9 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       poblarSelect('cont', Array.from({length: 100}, (_, i) => i + 1));
-      cargarUbicaciones();
+      poblarSelect('letra', Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i)));
+      poblarSelect('rack', Array.from({length: 65}, (_, i) => i + 11)); // 11 a 75
+      poblarSelect('nivel', Array.from({length: 6}, (_, i) => 'N' + (i + 1)));
 
       document.getElementById('busqueda').addEventListener('keydown', e => {
         if (e.key === 'Enter') { e.preventDefault(); buscarProducto(); }
@@ -123,35 +133,23 @@
       return resp.json();
     }
 
-    async function cargarUbicaciones() {
-      const sel = document.getElementById('ubicacion');
-      try {
-        const result = await llamarServidor({ action: 'obtenerUbicaciones' });
-        sel.innerHTML = '<option value="">Selecciona...</option>';
-        if (result.status === 'success') {
-          result.ubicaciones.forEach(u => {
-            const opt = document.createElement('option');
-            opt.value = u; opt.textContent = u;
-            sel.appendChild(opt);
-          });
-        } else {
-          sel.innerHTML = '<option value="">Error al cargar</option>';
-        }
-      } catch (err) {
-        sel.innerHTML = '<option value="">Sin conexión</option>';
-      }
-    }
-
     function confirmarSesion() {
-      const ubi = document.getElementById('ubicacion').value;
-      if (!ubi) { alert('Selecciona una ubicación'); return; }
+      const letra = document.getElementById('letra').value;
+      const rack = document.getElementById('rack').value;
+      const nivel = document.getElementById('nivel').value;
+
+      if (!letra || !rack || !nivel) {
+        alert('Selecciona Letra, Rack y Nivel');
+        return;
+      }
 
       if (!sesion.contenedorFijo) {
         const cont = document.getElementById('cont').value;
         if (!cont) { alert('Selecciona un contenedor'); return; }
         sesion.cont = cont;
       }
-      sesion.ubi = ubi;
+
+      sesion.ubi = `TEXCO/FERRAFORME/${letra}/${rack}/${nivel}`;
 
       document.getElementById('barraFija').textContent =
         `📦 Contenedor ${sesion.cont}  |  📍 ${sesion.ubi}`;
@@ -290,7 +288,9 @@
       document.getElementById('contenedorFijoLabel').style.display = 'block';
       document.getElementById('contenedorFijoLabel').textContent = `📦 Contenedor fijo: ${sesion.cont}`;
       document.getElementById('pantallaSesion').style.display = 'block';
-      document.getElementById('ubicacion').value = '';
+      document.getElementById('letra').value = '';
+      document.getElementById('rack').value = '';
+      document.getElementById('nivel').value = '';
     }
 
     function finalizarContenedor() {
