@@ -16,10 +16,10 @@
     button { width: 100%; padding: 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size:15px; }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-orange { background: #F29D38; color: #000; }
-    .btn-blue { background: #3B82F6; color: #fff; }
+    .btn-blue { background: #3B9BFF; color: #fff; }
     .btn-gray { background:#555; color:#fff; }
     .btn-purple { background:#8b5cf6; color:#fff; }
-    .logo { width: 120px; display: block; margin: 0 auto 15px; }
+    .logo { width: 140px; display: block; margin: 0 auto 15px; }
     #barraFija { background:#F29D38; color:#000; padding:12px; border-radius:8px; font-weight:bold; text-align:center; margin-bottom:15px; font-size:14px; }
     #contenedorFijoLabel { background:#2a2a2a; padding:10px; border-radius:6px; font-weight:bold; color:#F29D38; text-align:center; margin-bottom:10px; }
     .scan-row { display:flex; gap:8px; align-items:flex-start; }
@@ -33,7 +33,6 @@
     #modoManual .titulo { color:#F29D38; font-weight:bold; font-size:13px; }
     hr { border-color:#333; margin:15px 0; }
 
-    /* MODAL CATÁLOGO */
     #modalOverlay {
       display:none; position:fixed; top:0; left:0; width:100%; height:100%;
       background:rgba(0,0,0,0.7); z-index:1000; padding:15px; box-sizing:border-box;
@@ -57,7 +56,6 @@
   <img src="logo.png" class="logo" onerror="this.style.display='none'">
   <h2 style="text-align:center; color:#F29D38;">Hyper Grid</h2>
 
-  <!-- PANTALLA 1: SESIÓN (Contenedor + Ubicación) -->
   <div id="pantallaSesion" class="card">
     <div id="contenedorFijoLabel" style="display:none;"></div>
 
@@ -77,7 +75,6 @@
     <button class="btn-orange" onclick="confirmarSesion()">Iniciar / Confirmar Ubicación</button>
   </div>
 
-  <!-- PANTALLA 2: CAPTURA -->
   <div id="app" class="card" style="display:none;">
     <div id="barraFija"></div>
 
@@ -118,7 +115,6 @@
     <button class="btn-gray" onclick="finalizarContenedor()" type="button">⏹ Finalizar Contenedor</button>
   </div>
 
-  <!-- MODAL: CATÁLOGO DEL CONTENEDOR -->
   <div id="modalOverlay">
     <div id="modalCatalogo">
       <h3>📋 Catálogo — Contenedor <span id="modalContTexto"></span></h3>
@@ -130,7 +126,7 @@
   </div>
 
   <script>
-    const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwFNuOLW_7Ebbv8onF-V1tMRCg5Rb7UcdNoJxycjGVtipYPeL0FFjzHvsv56R-NZR2P/exec";
+    const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxPQYsCjdQPP8yIezDJuO2kg9ykfdudrj49kBnKf558-_KYC-B-6E_5hRQ7WutLw3jA/exec";
 
     let sesion = { cont: '', ubi: '', contenedorFijo: false };
     let productoActual = null;
@@ -286,7 +282,6 @@
       document.getElementById('scannerContainer').style.display = 'none';
     }
 
-    // ----- MODAL CATÁLOGO -----
     async function abrirModalCatalogo() {
       document.getElementById('modalContTexto').textContent = sesion.cont;
       document.getElementById('inputFiltroModal').value = '';
@@ -353,7 +348,6 @@
     function cerrarModalCatalogo() {
       document.getElementById('modalOverlay').style.display = 'none';
     }
-    // ----- FIN MODAL -----
 
     async function guardar() {
       const busqueda = document.getElementById('busqueda').value.trim();
