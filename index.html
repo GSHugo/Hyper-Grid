@@ -18,6 +18,7 @@
     .btn-orange { background: #F29D38; color: #000; }
     .btn-blue { background: #3B82F6; color: #fff; }
     .btn-gray { background:#555; color:#fff; }
+    .btn-purple { background:#8b5cf6; color:#fff; }
     .logo { width: 120px; display: block; margin: 0 auto 15px; }
     #barraFija { background:#F29D38; color:#000; padding:12px; border-radius:8px; font-weight:bold; text-align:center; margin-bottom:15px; font-size:14px; }
     #contenedorFijoLabel { background:#2a2a2a; padding:10px; border-radius:6px; font-weight:bold; color:#F29D38; text-align:center; margin-bottom:10px; }
@@ -31,6 +32,25 @@
     #modoManual { background:#352a15; border:1px solid #7d5a2e; padding:12px; border-radius:8px; margin-top:10px; }
     #modoManual .titulo { color:#F29D38; font-weight:bold; font-size:13px; }
     hr { border-color:#333; margin:15px 0; }
+
+    /* MODAL CATÁLOGO */
+    #modalOverlay {
+      display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.7); z-index:1000; padding:15px; box-sizing:border-box;
+    }
+    #modalCatalogo {
+      background:#1E1E1E; border-radius:12px; max-height:85vh; overflow-y:auto;
+      padding:15px; margin:0 auto; max-width:500px; margin-top:5vh;
+    }
+    #modalCatalogo h3 { color:#F29D38; margin-top:0; }
+    #inputFiltroModal { margin-bottom:10px; }
+    .item-catalogo {
+      background:#2a2a2a; padding:10px; border-radius:8px; margin-bottom:8px; cursor:pointer;
+    }
+    .item-catalogo:active { background:#3a3a3a; }
+    .item-catalogo .desc { font-weight:bold; color:#fff; font-size:14px; }
+    .item-catalogo .meta { font-size:12px; color:#aaa; margin-top:3px; }
+    #sinResultadosModal { text-align:center; color:#888; padding:20px; }
   </style>
 </head>
 <body>
@@ -61,12 +81,13 @@
   <div id="app" class="card" style="display:none;">
     <div id="barraFija"></div>
 
-    <label>Código (EAN / Ref / Descripción)</label>
+    <label>Código (SKU Odoo / EAN / Ref / Descripción)</label>
     <div class="scan-row">
-      <input type="text" id="busqueda" placeholder="Escanea, escribe código o descripción...">
+      <input type="text" id="busqueda" placeholder="Escanea o escribe SKU, EAN, ref...">
       <button class="btn-orange" onclick="abrirScanner()" type="button">📷</button>
     </div>
     <button class="btn-blue" onclick="buscarProducto()" type="button">🔍 Buscar</button>
+    <button class="btn-purple" onclick="abrirModalCatalogo()" type="button">📋 Ver Catálogo del Contenedor</button>
 
     <div id="scannerContainer" style="display:none;">
       <div id="reader"></div>
@@ -97,17 +118,29 @@
     <button class="btn-gray" onclick="finalizarContenedor()" type="button">⏹ Finalizar Contenedor</button>
   </div>
 
+  <!-- MODAL: CATÁLOGO DEL CONTENEDOR -->
+  <div id="modalOverlay">
+    <div id="modalCatalogo">
+      <h3>📋 Catálogo — Contenedor <span id="modalContTexto"></span></h3>
+      <input type="text" id="inputFiltroModal" placeholder="Filtrar dentro de este contenedor...">
+      <div id="listaItemsModal"></div>
+      <div id="sinResultadosModal" style="display:none;">Sin resultados</div>
+      <button class="btn-gray" onclick="cerrarModalCatalogo()" type="button">Cerrar</button>
+    </div>
+  </div>
+
   <script>
-    const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxSD7oa0UjsFeYTXHh_90Rvsdlxa8Tbu7kjaDDg5ld83jZZkjA41A8tQqm2SBl5-LFg/exec";
+    const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwFNuOLW_7Ebbv8onF-V1tMRCg5Rb7UcdNoJxycjGVtipYPeL0FFjzHvsv56R-NZR2P/exec";
 
     let sesion = { cont: '', ubi: '', contenedorFijo: false };
     let productoActual = null;
     let html5QrCode = null;
+    let catalogoCargado = [];
 
     document.addEventListener('DOMContentLoaded', () => {
       poblarSelect('cont', Array.from({length: 100}, (_, i) => i + 1));
       poblarSelect('letra', Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i)));
-      poblarSelect('rack', Array.from({length: 65}, (_, i) => i + 11)); // 11 a 75
+      poblarSelect('rack', Array.from({length: 65}, (_, i) => i + 11));
       poblarSelect('nivel', Array.from({length: 6}, (_, i) => 'N' + (i + 1)));
 
       document.getElementById('busqueda').addEventListener('keydown', e => {
@@ -116,6 +149,7 @@
       document.getElementById('cant').addEventListener('keydown', e => {
         if (e.key === 'Enter') { e.preventDefault(); guardar(); }
       });
+      document.getElementById('inputFiltroModal').addEventListener('input', filtrarModal);
     });
 
     function poblarSelect(id, valores) {
@@ -188,13 +222,7 @@
         });
 
         if (result.status === 'success') {
-          productoActual = { sku: result.sku, descripcion: result.descripcion };
-          document.getElementById('resTexto').textContent =
-            `${result.descripcion}  —  SKU: ${result.sku}`;
-          document.getElementById('resultadoProducto').style.display = 'block';
-          document.getElementById('cant').disabled = false;
-          document.getElementById('btnRegistrar').disabled = false;
-          document.getElementById('cant').focus();
+          aplicarProductoEncontrado(result);
         } else if (result.status === 'no_encontrado') {
           document.getElementById('modoManual').style.display = 'block';
         } else {
@@ -203,6 +231,16 @@
       } catch (err) {
         alert('No se pudo conectar con el servidor');
       }
+    }
+
+    function aplicarProductoEncontrado(result) {
+      productoActual = { sku: result.sku, descripcion: result.descripcion };
+      document.getElementById('resTexto').textContent =
+        `${result.descripcion}  —  SKU: ${result.sku}`;
+      document.getElementById('resultadoProducto').style.display = 'block';
+      document.getElementById('cant').disabled = false;
+      document.getElementById('btnRegistrar').disabled = false;
+      document.getElementById('cant').focus();
     }
 
     function confirmarManual() {
@@ -247,6 +285,75 @@
       }
       document.getElementById('scannerContainer').style.display = 'none';
     }
+
+    // ----- MODAL CATÁLOGO -----
+    async function abrirModalCatalogo() {
+      document.getElementById('modalContTexto').textContent = sesion.cont;
+      document.getElementById('inputFiltroModal').value = '';
+      document.getElementById('listaItemsModal').innerHTML = '<div style="text-align:center; color:#888; padding:15px;">Cargando...</div>';
+      document.getElementById('modalOverlay').style.display = 'block';
+
+      try {
+        const result = await llamarServidor({ action: 'listarCatalogo', contenedor: sesion.cont });
+        if (result.status === 'success') {
+          catalogoCargado = result.items;
+          renderizarListaModal(catalogoCargado);
+        } else {
+          document.getElementById('listaItemsModal').innerHTML = '';
+          document.getElementById('sinResultadosModal').style.display = 'block';
+        }
+      } catch (err) {
+        document.getElementById('listaItemsModal').innerHTML = '<div style="text-align:center; color:#f87171;">Sin conexión</div>';
+      }
+    }
+
+    function renderizarListaModal(items) {
+      const cont = document.getElementById('listaItemsModal');
+      const sinResultados = document.getElementById('sinResultadosModal');
+      cont.innerHTML = '';
+
+      if (!items.length) {
+        sinResultados.style.display = 'block';
+        return;
+      }
+      sinResultados.style.display = 'none';
+
+      items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item-catalogo';
+        div.innerHTML = `
+          <div class="desc">${item.descripcion || '(sin descripción)'}</div>
+          <div class="meta">SKU: ${item.sku || '-'} &nbsp;|&nbsp; REF: ${item.refInterna || '-'} &nbsp;|&nbsp; EAN: ${item.ean || '-'}</div>
+        `;
+        div.onclick = () => seleccionarItemModal(item);
+        cont.appendChild(div);
+      });
+    }
+
+    function filtrarModal() {
+      const texto = document.getElementById('inputFiltroModal').value.trim().toUpperCase();
+      if (!texto) { renderizarListaModal(catalogoCargado); return; }
+
+      const filtrados = catalogoCargado.filter(item => {
+        return String(item.descripcion || '').toUpperCase().indexOf(texto) !== -1
+          || String(item.sku || '').toUpperCase().indexOf(texto) !== -1
+          || String(item.refInterna || '').toUpperCase().indexOf(texto) !== -1
+          || String(item.ean || '').toUpperCase().indexOf(texto) !== -1;
+      });
+      renderizarListaModal(filtrados);
+    }
+
+    function seleccionarItemModal(item) {
+      document.getElementById('busqueda').value = item.sku || item.refInterna || item.ean || '';
+      aplicarProductoEncontrado({ sku: item.sku, descripcion: item.descripcion });
+      cerrarModalCatalogo();
+      document.getElementById('cant').focus();
+    }
+
+    function cerrarModalCatalogo() {
+      document.getElementById('modalOverlay').style.display = 'none';
+    }
+    // ----- FIN MODAL -----
 
     async function guardar() {
       const busqueda = document.getElementById('busqueda').value.trim();
